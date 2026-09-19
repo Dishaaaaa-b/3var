@@ -4,9 +4,14 @@ import { useState } from "react";
 
 export default function NewInterview() {
   const [difficulty, setDifficulty] = useState("Intermediate");
-  const [questions, setQuestions] = useState<string[]>([
-    "",
-  ]);
+  const [questions, setQuestions] = useState([""]);
+  const [jobTitle, setJobTitle] = useState("");
+  const [department, setDepartment] = useState("");
+  const [skills, setSkills] = useState("");
+  const [duration, setDuration] = useState("30 minutes");
+  const [maxQuestions, setMaxQuestions] = useState("10 questions");
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
 
   const addQuestion = () => {
     setQuestions([...questions, ""]);
@@ -21,6 +26,50 @@ export default function NewInterview() {
   const removeQuestion = (index: number) => {
     if (questions.length === 1) return;
     setQuestions(questions.filter((_, i) => i !== index));
+  };
+
+  const createInterview = async () => {
+    setMessage("");
+
+    if (!jobTitle.trim() || !skills.trim()) {
+      setMessage("Job title and required skills are required.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      const response = await fetch("/api/interviews/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          jobTitle,
+          department,
+          skills,
+          difficulty,
+          duration,
+          maxQuestions,
+          mandatoryQuestions: questions.filter(
+            (question) => question.trim() !== ""
+          ),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setMessage(data.error || "Something went wrong.");
+        return;
+      }
+
+      setMessage(`Interview created successfully. ID: ${data.interview.id}`);
+    } catch {
+      setMessage("Unable to create interview.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -49,16 +98,16 @@ export default function NewInterview() {
         <div className="space-y-5">
           <section className="border border-[#e3e6eb] bg-white p-6">
             <h3 className="text-[15px] font-semibold">Role details</h3>
-            <p className="mt-1 text-[12px] text-[#8a92a0]">
-              Define what the AI interviewer should evaluate.
-            </p>
 
             <div className="mt-6 grid gap-5 md:grid-cols-2">
               <div>
                 <label className="mb-2 block text-[12px] font-medium">
                   Job title
                 </label>
+
                 <input
+                  value={jobTitle}
+                  onChange={(e) => setJobTitle(e.target.value)}
                   type="text"
                   placeholder="e.g. Data Analyst"
                   className="w-full border border-[#dfe3e8] bg-white px-3 py-2.5 text-[13px] outline-none focus:border-[#7d899a]"
@@ -69,7 +118,10 @@ export default function NewInterview() {
                 <label className="mb-2 block text-[12px] font-medium">
                   Department
                 </label>
+
                 <input
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
                   type="text"
                   placeholder="e.g. Analytics"
                   className="w-full border border-[#dfe3e8] bg-white px-3 py-2.5 text-[13px] outline-none focus:border-[#7d899a]"
@@ -81,11 +133,15 @@ export default function NewInterview() {
               <label className="mb-2 block text-[12px] font-medium">
                 Required skills
               </label>
+
               <input
+                value={skills}
+                onChange={(e) => setSkills(e.target.value)}
                 type="text"
                 placeholder="e.g. Power BI, SQL, Excel, Data Analysis"
                 className="w-full border border-[#dfe3e8] bg-white px-3 py-2.5 text-[13px] outline-none focus:border-[#7d899a]"
               />
+
               <p className="mt-2 text-[11px] text-[#969daa]">
                 Separate skills with commas.
               </p>
@@ -94,9 +150,6 @@ export default function NewInterview() {
 
           <section className="border border-[#e3e6eb] bg-white p-6">
             <h3 className="text-[15px] font-semibold">Interview settings</h3>
-            <p className="mt-1 text-[12px] text-[#8a92a0]">
-              Control the difficulty and interview structure.
-            </p>
 
             <div className="mt-6">
               <label className="mb-2 block text-[12px] font-medium">
@@ -107,6 +160,7 @@ export default function NewInterview() {
                 {["Basic", "Intermediate", "Expert"].map((level) => (
                   <button
                     key={level}
+                    type="button"
                     onClick={() => setDifficulty(level)}
                     className={`border px-4 py-3 text-[12px] font-medium transition ${
                       difficulty === level
@@ -125,7 +179,12 @@ export default function NewInterview() {
                 <label className="mb-2 block text-[12px] font-medium">
                   Interview duration
                 </label>
-                <select className="w-full border border-[#dfe3e8] bg-white px-3 py-2.5 text-[13px] outline-none">
+
+                <select
+                  value={duration}
+                  onChange={(e) => setDuration(e.target.value)}
+                  className="w-full border border-[#dfe3e8] bg-white px-3 py-2.5 text-[13px] outline-none"
+                >
                   <option>15 minutes</option>
                   <option>20 minutes</option>
                   <option>30 minutes</option>
@@ -138,7 +197,12 @@ export default function NewInterview() {
                 <label className="mb-2 block text-[12px] font-medium">
                   Maximum questions
                 </label>
-                <select className="w-full border border-[#dfe3e8] bg-white px-3 py-2.5 text-[13px] outline-none">
+
+                <select
+                  value={maxQuestions}
+                  onChange={(e) => setMaxQuestions(e.target.value)}
+                  className="w-full border border-[#dfe3e8] bg-white px-3 py-2.5 text-[13px] outline-none"
+                >
                   <option>8 questions</option>
                   <option>10 questions</option>
                   <option>12 questions</option>
@@ -154,12 +218,14 @@ export default function NewInterview() {
                 <h3 className="text-[15px] font-semibold">
                   Mandatory questions
                 </h3>
+
                 <p className="mt-1 text-[12px] text-[#8a92a0]">
                   Add questions that must be covered during the interview.
                 </p>
               </div>
 
               <button
+                type="button"
                 onClick={addQuestion}
                 className="border border-[#d9dee5] px-3 py-2 text-[12px] font-medium text-[#45556d] hover:bg-[#f7f8fa]"
               >
@@ -185,6 +251,7 @@ export default function NewInterview() {
                   />
 
                   <button
+                    type="button"
                     onClick={() => removeQuestion(index)}
                     className="px-3 text-[12px] text-[#969daa] hover:text-[#4f5968]"
                   >
@@ -202,10 +269,12 @@ export default function NewInterview() {
 
             <div className="mt-5 flex items-start gap-3 border border-[#e7e9ed] bg-[#fafbfc] p-4">
               <div className="mt-0.5 h-4 w-4 border border-[#6f7b8c]" />
+
               <div>
                 <div className="text-[13px] font-medium">
                   One-time interview attempt
                 </div>
+
                 <div className="mt-1 text-[11px] leading-5 text-[#8a92a0]">
                   The candidate will receive a unique interview link. Once
                   completed, the same attempt cannot be restarted.
@@ -214,13 +283,27 @@ export default function NewInterview() {
             </div>
           </section>
 
+          {message && (
+            <div className="border border-[#dfe3e8] bg-white px-4 py-3 text-[12px] text-[#596577]">
+              {message}
+            </div>
+          )}
+
           <div className="flex justify-end gap-3 pt-2">
-            <button className="border border-[#d9dee5] bg-white px-5 py-2.5 text-[13px] font-medium text-[#687181] hover:bg-[#f7f8fa]">
+            <button
+              type="button"
+              className="border border-[#d9dee5] bg-white px-5 py-2.5 text-[13px] font-medium text-[#687181] hover:bg-[#f7f8fa]"
+            >
               Save as draft
             </button>
 
-            <button className="bg-[#25344b] px-5 py-2.5 text-[13px] font-medium text-white hover:bg-[#1e2a3d]">
-              Create Interview
+            <button
+              type="button"
+              onClick={createInterview}
+              disabled={saving}
+              className="bg-[#25344b] px-5 py-2.5 text-[13px] font-medium text-white hover:bg-[#1e2a3d] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving ? "Creating..." : "Create Interview"}
             </button>
           </div>
         </div>
